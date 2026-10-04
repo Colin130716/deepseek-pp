@@ -167,6 +167,12 @@ export const TOOL_RUNTIME_PAYLOAD_DECODERS: ToolRuntimePayloadDecoderMap = {
     validateBrowserControlSettingsPatch(payload, 'SAVE_BROWSER_CONTROL_SETTINGS.payload');
     return typedPayload<'SAVE_BROWSER_CONTROL_SETTINGS'>(payload);
   },
+  SAVE_LOCAL_WORKSPACE_SETTINGS(value) {
+    if (value === undefined) return undefined;
+    const payload = recordValue(value, 'SAVE_LOCAL_WORKSPACE_SETTINGS.payload');
+    validateLocalWorkspaceSettingsPatch(payload, 'SAVE_LOCAL_WORKSPACE_SETTINGS.payload');
+    return typedPayload<'SAVE_LOCAL_WORKSPACE_SETTINGS'>(payload);
+  },
   SET_BROWSER_CONTROL_ENABLED(value) {
     const payload = recordValue(value, 'SET_BROWSER_CONTROL_ENABLED.payload');
     booleanValue(payload.enabled, 'SET_BROWSER_CONTROL_ENABLED.payload.enabled');
@@ -386,6 +392,27 @@ function validateBrowserControlSettingsPatch(
   }
   if (payload.maxSnapshotTextBytes !== undefined) {
     finiteNumber(payload.maxSnapshotTextBytes, `${path}.maxSnapshotTextBytes`);
+  }
+}
+
+function validateLocalWorkspaceSettingsPatch(
+  payload: Record<string, unknown>,
+  path: string,
+): void {
+  const allowedKeys = ['enabled', 'host', 'port', 'workspacePath', 'permission'];
+  for (const key of Object.keys(payload)) {
+    if (!allowedKeys.includes(key)) throw new Error(`${path}.${key} is not allowed`);
+  }
+  optionalBoolean(payload.enabled, `${path}.enabled`);
+  optionalString(payload.host, `${path}.host`);
+  if (payload.port !== undefined) integerValue(payload.port, `${path}.port`);
+  optionalString(payload.workspacePath, `${path}.workspacePath`);
+  if (payload.permission !== undefined) {
+    enumValue(
+      payload.permission,
+      ['read_only', 'workspace_write', 'full_access'],
+      `${path}.permission`,
+    );
   }
 }
 
