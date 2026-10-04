@@ -44,6 +44,12 @@ import {
   executeWebSearchToolCall,
   WEB_SEARCH_TOOL_PROVIDER,
 } from '../../core/tool/web-search';
+import {
+  createLocalWorkspaceToolDescriptors,
+  executeLocalWorkspaceToolCall,
+  getLocalWorkspaceSettings,
+  LOCAL_WORKSPACE_PROVIDER,
+} from '../../core/tool/local-workspace';
 import { getWebToolSettings } from '../../core/tool/web-settings';
 import {
   MCP_CAPABILITY_TOOL_PROVIDER,
@@ -118,6 +124,14 @@ export function createProductionToolProviderRegistry(): ToolProviderRegistry {
         return createBrowserControlToolDescriptors(locale);
       },
       (call, _descriptor, { locale }) => executeBrowserControlToolCall(call, locale),
+    ),
+    createLocalProvider(
+      LOCAL_WORKSPACE_PROVIDER.id,
+      async ({ locale }) => {
+        const settings = await getLocalWorkspaceSettings();
+        return createLocalWorkspaceToolDescriptors(locale, settings);
+      },
+      (call, _descriptor, { locale }) => executeLocalWorkspaceToolCall(call, locale),
     ),
     createMcpCapabilityProvider(),
     createMcpProvider(),

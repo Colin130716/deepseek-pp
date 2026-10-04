@@ -14,6 +14,10 @@ import type {
 import type { PlatformEnvironment } from '../platform/capabilities';
 import type { SandboxRunRequest } from '../sandbox/types';
 import type {
+  LocalWorkspaceConnectionTestResult,
+  LocalWorkspaceSettings,
+} from '../tool/local-workspace/types';
+import type {
   MessageAction,
   ToolAuthorizationGrantSummary,
   ToolCallHistoryRecord,
@@ -156,6 +160,21 @@ export interface ToolRuntimeCommandContracts {
   DETACH_BROWSER_CONTROL: {
     request: { type: 'DETACH_BROWSER_CONTROL' };
     response: Ack;
+  };
+  GET_LOCAL_WORKSPACE_SETTINGS: {
+    request: { type: 'GET_LOCAL_WORKSPACE_SETTINGS' };
+    response: LocalWorkspaceSettings;
+  };
+  SAVE_LOCAL_WORKSPACE_SETTINGS: {
+    request: {
+      type: 'SAVE_LOCAL_WORKSPACE_SETTINGS';
+      payload?: Partial<LocalWorkspaceSettings>;
+    };
+    response: LocalWorkspaceSettings;
+  };
+  TEST_LOCAL_WORKSPACE_CONNECTION: {
+    request: { type: 'TEST_LOCAL_WORKSPACE_CONNECTION' };
+    response: LocalWorkspaceConnectionTestResult;
   };
   DIAGNOSE_WEB_SEARCH: {
     request: { type: 'DIAGNOSE_WEB_SEARCH'; payload?: { query?: string } };

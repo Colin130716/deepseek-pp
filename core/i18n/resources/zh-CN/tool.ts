@@ -212,4 +212,17 @@ export const tool = {
     evaluateScriptTitle: '执行脚本',
     evaluateScriptDescription: '在受控页面中执行 JavaScript 表达式并返回可序列化结果。',
   },
+  localWorkspace: {
+    providerName: 'DeepSeek++ 本地工作区',
+    readTitle: '读取文件',
+    readDescription: '读取所选本地工作区内的 UTF-8 文本文件（路径相对于工作区根目录）。',
+    listTitle: '列出目录',
+    listDescription: '列出所选本地工作区内的文件和子目录。',
+    writeTitle: '写入文件',
+    writeDescription: '在所选本地工作区内创建或覆盖文本文件。',
+    editTitle: '编辑文件',
+    editDescription: '在工作区文件中精确替换字符串；匹配不唯一时失败。',
+    bashTitle: '执行 Shell 命令',
+    bashDescription: '以本地工作区为当前目录执行 bash 命令（仅完全权限可用）。',
+  },
 } as const;

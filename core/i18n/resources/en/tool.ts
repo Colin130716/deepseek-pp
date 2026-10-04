@@ -212,4 +212,17 @@ export const tool = {
     evaluateScriptTitle: 'Evaluate script',
     evaluateScriptDescription: 'Run JavaScript in the controlled page and return a serializable result.',
   },
+  localWorkspace: {
+    providerName: 'DeepSeek++ Local Workspace',
+    readTitle: 'Read file',
+    readDescription: 'Read a UTF-8 text file inside the selected local workspace (paths are relative to the workspace root).',
+    listTitle: 'List directory',
+    listDescription: 'List files and subdirectories inside the selected local workspace.',
+    writeTitle: 'Write file',
+    writeDescription: 'Create or overwrite a text file inside the selected local workspace.',
+    editTitle: 'Edit file',
+    editDescription: 'Replace an exact string inside a workspace file; fails when the match is ambiguous.',
+    bashTitle: 'Run shell command',
+    bashDescription: 'Run a bash command with the local workspace as the working directory (full access permission only).',
+  },
 } as const;
