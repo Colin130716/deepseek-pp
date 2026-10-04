@@ -2,7 +2,14 @@ import {
   LOCAL_WORKSPACE_DEFAULT_PORT,
   LOCAL_WORKSPACE_STORAGE_KEY,
   isLocalWorkspacePermissionLevel,
+  type LocalWorkspacePermissionLevel,
   type LocalWorkspaceSettings,
+} from './types';
+
+export type {
+  LocalWorkspaceConnectionTestResult,
+  LocalWorkspacePermissionLevel,
+  LocalWorkspaceSettings,
 } from './types';
 
 export const DEFAULT_LOCAL_WORKSPACE_SETTINGS: LocalWorkspaceSettings = {

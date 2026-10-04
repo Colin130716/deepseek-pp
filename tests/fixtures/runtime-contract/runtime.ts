@@ -5,7 +5,7 @@ export const RUNTIME_TOPOLOGY = {
   liveOnly: 36,
   declaredOnly: 2,
   readsPayload: 87,
-  ignoresPayload: 46,
+  ignoresPayload: 47,
   directPayloadCasts: 0,
   decodedPayloads: 87,
   delegatedPayloads: 0,
