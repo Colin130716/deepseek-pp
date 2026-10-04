@@ -1,9 +1,15 @@
 import { useState } from 'react';
 import type { LocaleMessageKey } from '../../../core/i18n';
 import type { McpServerConfig, McpToolCacheEntry, ToolDescriptor } from '../../../core/types';
+import {
+  LOCAL_WORKSPACE_PERMISSION_LEVELS,
+  type LocalWorkspacePermissionLevel,
+  type LocalWorkspaceSettings,
+} from '../../../core/tool/local-workspace';
 import PageIntro from '../components/PageIntro';
 import { SettingsSection, StatusMessage, ToggleRow } from '../components/settings/primitives';
 import { isMcpToolEnabled, mcpToolsController } from '../controllers/mcp-tools-controller';
+import type { LocalWorkspaceBusyState, ControllerMessageTone } from '../controllers/useToolsPageController';
 import { useToolsPageController } from '../controllers/useToolsPageController';
 import { useI18n } from '../i18n';
 
@@ -216,6 +222,163 @@ function PythonToolCard({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+const PERMISSION_LABEL_KEYS: Record<LocalWorkspacePermissionLevel, LocaleMessageKey> = {
+  read_only: 'sidepanel.toolsPage.localWorkspacePermissionReadOnly',
+  workspace_write: 'sidepanel.toolsPage.localWorkspacePermissionWorkspaceWrite',
+  full_access: 'sidepanel.toolsPage.localWorkspacePermissionFullAccess',
+};
+
+function LocalWorkspaceCard({
+  settings,
+  busy,
+  message,
+  messageTone,
+  onSave,
+  onTest,
+}: {
+  settings: LocalWorkspaceSettings | null;
+  busy: LocalWorkspaceBusyState;
+  message: string;
+  messageTone: ControllerMessageTone;
+  onSave: (patch: Partial<LocalWorkspaceSettings>) => void;
+  onTest: () => void;
+}) {
+  const { t } = useI18n();
+  const [pathDraft, setPathDraft] = useState('');
+  const enabled = settings?.enabled ?? false;
+  const permission = settings?.permission ?? 'read_only';
+  const savedPath = settings?.workspacePath ?? '';
+  const pathValue = pathDraft || savedPath;
+  const canToggle = Boolean(savedPath) && busy === 'idle';
+  const inputStyle = {
+    background: 'var(--ds-bg)',
+    borderColor: 'var(--ds-border)',
+    color: 'var(--ds-text)',
+  };
+
+  return (
+    <div className="ds-surface-panel rounded-xl p-4 flex flex-col gap-3">
+      <div className="flex items-start gap-3">
+        <svg
+          className="w-5 h-5 shrink-0 mt-0.5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          style={{ color: enabled ? 'var(--ds-blue)' : 'var(--ds-text-tertiary)' }}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+          />
+        </svg>
+        <div className="flex-1 min-w-0">
+          <div className="text-xs font-medium" style={{ color: 'var(--ds-text)' }}>
+            {t('sidepanel.toolsPage.localWorkspaceTitle')}
+          </div>
+          <div className="text-[11px] mt-1 leading-relaxed" style={{ color: 'var(--ds-text-secondary)' }}>
+            {t('sidepanel.toolsPage.localWorkspaceDescription')}
+          </div>
+        </div>
+        <button
+          onClick={() => onSave({ enabled: !enabled, workspacePath: savedPath })}
+          disabled={!canToggle}
+          aria-pressed={enabled}
+          aria-label={t('sidepanel.toolsPage.localWorkspaceTitle')}
+          className="ds-switch relative shrink-0 w-10 h-[22px] rounded-full transition-colors duration-200 disabled:opacity-50"
+          style={{ background: enabled ? 'var(--ds-blue)' : 'var(--ds-border)' }}
+        >
+          <span
+            className="ds-switch-thumb absolute top-[3px] left-[3px] w-4 h-4 rounded-full transition-transform duration-200"
+            style={{ transform: enabled ? 'translateX(18px)' : 'translateX(0)' }}
+          />
+        </button>
+      </div>
+
+      <div className="text-[10px] px-2 py-1.5 rounded-md font-mono" style={{ color: 'var(--ds-text-tertiary)', background: 'var(--ds-bg)' }}>
+        {t('sidepanel.toolsPage.localWorkspaceServerHint')}
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[11px] font-medium" style={{ color: 'var(--ds-text-secondary)' }}>
+          {t('sidepanel.toolsPage.localWorkspacePathLabel')}
+        </label>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={pathValue}
+            placeholder={t('sidepanel.toolsPage.localWorkspacePathPlaceholder')}
+            onChange={(e) => setPathDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && pathDraft.trim()) {
+                onSave({ workspacePath: pathDraft.trim() });
+                setPathDraft('');
+              }
+            }}
+            className="flex-1 min-w-0 px-3 py-2 text-xs rounded-lg border outline-none"
+            style={inputStyle}
+          />
+          <button
+            onClick={() => {
+              if (!pathDraft.trim()) return;
+              onSave({ workspacePath: pathDraft.trim() });
+              setPathDraft('');
+            }}
+            disabled={busy !== 'idle' || !pathDraft.trim()}
+            className="ds-btn-secondary shrink-0 px-3 py-2 text-[11px] font-medium rounded-lg disabled:opacity-40"
+          >
+            {t('sidepanel.toolsPage.localWorkspaceSavePath')}
+          </button>
+        </div>
+        {savedPath && (
+          <div className="text-[10px] truncate font-mono" style={{ color: 'var(--ds-text-tertiary)' }}>
+            {savedPath}
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[11px] font-medium" style={{ color: 'var(--ds-text-secondary)' }}>
+          {t('sidepanel.toolsPage.localWorkspacePermissionLabel')}
+        </label>
+        <div className="flex gap-1.5">
+          {LOCAL_WORKSPACE_PERMISSION_LEVELS.map((level) => (
+            <button
+              key={level}
+              onClick={() => onSave({ permission: level })}
+              disabled={busy !== 'idle'}
+              className="flex-1 px-2 py-1.5 text-[10px] font-medium rounded-lg border transition-colors disabled:opacity-50"
+              style={permission === level
+                ? { background: 'var(--ds-blue)', borderColor: 'var(--ds-blue)', color: '#fff' }
+                : { background: 'var(--ds-bg)', borderColor: 'var(--ds-border)', color: 'var(--ds-text-secondary)' }}
+            >
+              {t(PERMISSION_LABEL_KEYS[level])}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px]" style={{ color: 'var(--ds-text-tertiary)' }}>
+          {enabled
+            ? t('sidepanel.toolsPage.localWorkspaceStatusEnabled')
+            : t('sidepanel.toolsPage.localWorkspaceStatusDisabled')}
+        </span>
+        <button
+          onClick={onTest}
+          disabled={busy !== 'idle'}
+          className="ds-btn-secondary px-3 py-1.5 text-[11px] rounded-md disabled:opacity-50"
+        >
+          {busy === 'testing' ? t('sidepanel.toolsPage.localWorkspaceTesting') : t('sidepanel.toolsPage.localWorkspaceTest')}
+        </button>
+      </div>
+
+      {message && <StatusMessage tone={messageTone}>{message}</StatusMessage>}
     </div>
   );
 }

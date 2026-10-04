@@ -81,10 +81,10 @@ describe('runtime command compatibility contract', () => {
       expect(commands, heading).toHaveLength(count);
       return commands;
     });
-    expect(cutoverLedger).toHaveLength(131);
+    expect(cutoverLedger).toHaveLength(134);
     expect(new Set(cutoverLedger).size).toBe(cutoverLedger.length);
     expectSortedEqual(cutoverLedger, live);
-    expect(registryEntries).toHaveLength(133);
+    expect(registryEntries).toHaveLength(136);
     for (const contract of liveContracts) {
       const registered = RUNTIME_COMMAND_CONTRACTS[contract.type as keyof typeof RUNTIME_COMMAND_CONTRACTS];
       expect(registered.owner).toBe(getRuntimeCommandOwner(contract.type));
