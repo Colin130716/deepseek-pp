@@ -399,6 +399,12 @@ export default function ToolsPage() {
     pythonMessage,
     pythonMessageTone,
     nativeMessagingSupported,
+    localWorkspaceSettings,
+    localWorkspaceBusy,
+    localWorkspaceMessage,
+    localWorkspaceMessageTone,
+    saveLocalWorkspace,
+    testLocalWorkspaceConnection,
     updatePermissionUrl,
     createPythonShell,
     refreshPythonTools,
@@ -452,6 +458,14 @@ export default function ToolsPage() {
           onCreate={createPythonShell}
           onRefresh={refreshPythonTools}
           onToggle={togglePython}
+        />
+        <LocalWorkspaceCard
+          settings={localWorkspaceSettings}
+          busy={localWorkspaceBusy}
+          message={localWorkspaceMessage}
+          messageTone={localWorkspaceMessageTone}
+          onSave={saveLocalWorkspace}
+          onTest={testLocalWorkspaceConnection}
         />
       </div>
 
