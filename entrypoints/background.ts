@@ -96,6 +96,11 @@ import {
   saveBrowserControlSettings,
   setBrowserControlEnabled,
 } from '../core/browser-control';
+import {
+  getLocalWorkspaceSettings,
+  pingLocalWorkspaceServer,
+  saveLocalWorkspaceSettings,
+} from '../core/tool/local-workspace';
 import { filterSidepanelChatToolDescriptors } from '../core/tool/sidepanel';
 import { filterRetiredModelFacingTools } from '../core/tool/model-facing';
 import {
@@ -540,6 +545,11 @@ const runtimeCommandRegistry = createRuntimeCommandRegistry({
         setBrowserControlTarget: (tabId) => browserControlService.setTarget(tabId),
         detachBrowserControl: () => browserControlService.detach(),
         requestHostPermission: (origins) => chrome.permissions.request({ origins }),
+        getLocalWorkspaceSettings,
+        saveLocalWorkspaceSettings,
+        testLocalWorkspaceConnection: async () => (
+          pingLocalWorkspaceServer(await getLocalWorkspaceSettings())
+        ),
         fetch: (input, init) => fetch(input, init),
         broadcastToolDescriptorsUpdate,
         broadcastBrowserControlUpdate,

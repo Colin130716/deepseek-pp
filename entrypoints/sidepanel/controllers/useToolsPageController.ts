@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LocaleMessageKey, MessageParams } from '../../../core/i18n';
 import type { McpServerConfig, McpToolCacheEntry, PlatformEnvironment } from '../../../core/types';
+import {
+  localWorkspaceOrigin,
+  type LocalWorkspacePermissionLevel,
+  type LocalWorkspaceSettings,
+} from '../../../core/tool/local-workspace';
 import type { WebSearchToolName } from '../../../core/tool/web-search';
 import { createRequestGenerationFence } from '../async-state';
 import { getRuntimeErrorMessage } from '../runtime-response';
@@ -17,6 +22,7 @@ import {
 
 export type ToolPermissionState = 'idle' | 'granting' | 'granted' | 'denied' | 'error';
 export type PythonBusyState = 'idle' | 'creating' | 'refreshing' | 'toggling';
+export type LocalWorkspaceBusyState = 'idle' | 'saving' | 'testing';
 export type ControllerMessageTone = 'success' | 'error' | 'warning' | 'info';
 
 type Translator = (key: LocaleMessageKey, params?: MessageParams) => string;
@@ -37,9 +43,14 @@ export function useToolsPageController(t: Translator) {
   const [pythonBusy, setPythonBusy] = useState<PythonBusyState>('idle');
   const [pythonMessage, setPythonMessage] = useState('');
   const [pythonMessageTone, setPythonMessageTone] = useState<ControllerMessageTone>('info');
+  const [localWorkspaceSettings, setLocalWorkspaceSettings] = useState<LocalWorkspaceSettings | null>(null);
+  const [localWorkspaceBusy, setLocalWorkspaceBusy] = useState<LocalWorkspaceBusyState>('idle');
+  const [localWorkspaceMessage, setLocalWorkspaceMessage] = useState('');
+  const [localWorkspaceMessageTone, setLocalWorkspaceMessageTone] = useState<ControllerMessageTone>('info');
   const [platform, setPlatform] = useState<PlatformEnvironment | null>(null);
   const settingsFence = useRef(createRequestGenerationFence());
   const pythonFence = useRef(createRequestGenerationFence());
+  const localWorkspaceFence = useRef(createRequestGenerationFence());
 
   const loadSettings = useCallback(async () => {
     const generation = settingsFence.current.begin();
@@ -76,9 +87,24 @@ export function useToolsPageController(t: Translator) {
     }
   }, []);
 
+  const loadLocalWorkspace = useCallback(async () => {
+    const generation = localWorkspaceFence.current.begin();
+    try {
+      const next = await mcpToolsController.getLocalWorkspaceSettings();
+      if (!localWorkspaceFence.current.isCurrent(generation)) return;
+      setLocalWorkspaceSettings(next);
+    } catch (error) {
+      if (localWorkspaceFence.current.isCurrent(generation)) {
+        setLocalWorkspaceMessageTone('error');
+        setLocalWorkspaceMessage(getRuntimeErrorMessage(error));
+      }
+    }
+  }, []);
+
   useEffect(() => {
     void loadSettings();
     void loadPythonTool();
+    void loadLocalWorkspace();
     const reloadForRuntimeUpdate = (message: { type?: string }) => {
       if (message.type === 'MCP_SERVERS_UPDATED' || message.type === 'TOOL_DESCRIPTORS_UPDATED') {
         void loadPythonTool();
@@ -88,9 +114,10 @@ export function useToolsPageController(t: Translator) {
     return () => {
       settingsFence.current.invalidate();
       pythonFence.current.invalidate();
+      localWorkspaceFence.current.invalidate();
       chrome.runtime.onMessage.removeListener(reloadForRuntimeUpdate);
     };
-  }, [loadPythonTool, loadSettings]);
+  }, [loadLocalWorkspace, loadPythonTool, loadSettings]);
 
   const createPythonShell = useCallback(async () => {
     setPythonBusy('creating');
@@ -171,6 +198,58 @@ export function useToolsPageController(t: Translator) {
     }
   }, [loadPythonTool, pythonCache, pythonServer, t]);
 
+  const saveLocalWorkspace = useCallback(async (patch: Partial<LocalWorkspaceSettings>) => {
+    setLocalWorkspaceBusy('saving');
+    try {
+      const saved = await mcpToolsController.saveLocalWorkspaceSettings(patch);
+      setLocalWorkspaceSettings(saved);
+      // Enabling requires the extension to be allowed to talk to the local
+      // server; request host permission right after the enabling click so the
+      // user gesture is still valid.
+      if (patch.enabled === true && saved.enabled) {
+        const granted = await mcpToolsController.requestHostPermission([
+          `${localWorkspaceOrigin(saved)}/*`,
+        ]);
+        if (!granted) {
+          setLocalWorkspaceMessageTone('warning');
+          setLocalWorkspaceMessage(t('sidepanel.toolsPage.localWorkspacePermissionDenied'));
+        } else {
+          setLocalWorkspaceMessageTone('success');
+          setLocalWorkspaceMessage(t('sidepanel.toolsPage.localWorkspaceEnabled'));
+        }
+      }
+    } catch (error) {
+      setLocalWorkspaceMessageTone('error');
+      setLocalWorkspaceMessage(getRuntimeErrorMessage(error));
+    } finally {
+      setLocalWorkspaceBusy('idle');
+    }
+  }, [t]);
+
+  const testLocalWorkspaceConnection = useCallback(async () => {
+    setLocalWorkspaceBusy('testing');
+    setLocalWorkspaceMessage('');
+    try {
+      const result = await mcpToolsController.testLocalWorkspaceConnection();
+      if (result.ok) {
+        setLocalWorkspaceMessageTone('success');
+        setLocalWorkspaceMessage(t('sidepanel.toolsPage.localWorkspaceTestSuccess', {
+          version: result.serverVersion ?? '?',
+        }));
+      } else {
+        setLocalWorkspaceMessageTone('error');
+        setLocalWorkspaceMessage(t('sidepanel.toolsPage.localWorkspaceTestFailed', {
+          message: result.message,
+        }));
+      }
+    } catch (error) {
+      setLocalWorkspaceMessageTone('error');
+      setLocalWorkspaceMessage(getRuntimeErrorMessage(error));
+    } finally {
+      setLocalWorkspaceBusy('idle');
+    }
+  }, [t]);
+
   const toggleWebTool = useCallback(async (name: WebSearchToolName, enabled: boolean) => {
     const previous = settings[name];
     setSettings((current) => ({ ...current, [name]: enabled }));
@@ -238,13 +317,21 @@ export function useToolsPageController(t: Translator) {
     pythonBusy,
     pythonMessage,
     pythonMessageTone,
+    localWorkspaceSettings,
+    localWorkspaceBusy,
+    localWorkspaceMessage,
+    localWorkspaceMessageTone,
     nativeMessagingSupported: isMcpNativeMessagingSupported(platform),
     updatePermissionUrl,
     createPythonShell,
     refreshPythonTools,
     togglePython,
+    saveLocalWorkspace,
+    testLocalWorkspaceConnection,
     toggleWebTool,
     grantPermission,
     grantAllSites,
   };
 }
+
+export type { LocalWorkspacePermissionLevel };

@@ -18,6 +18,10 @@ import { createCapabilityMap, type PlatformEnvironment } from '../core/platform/
 import { createMcpCapabilityToolDescriptors } from '../core/mcp/capability-tools';
 import { ToolAuthorizationError } from '../core/tool/authorization';
 import type {
+  LocalWorkspaceConnectionTestResult,
+  LocalWorkspaceSettings,
+} from '../core/tool/local-workspace/types';
+import type {
   RuntimeToolAuthorizationContext,
   ToolAuthorizationGrantSummary,
   ToolCall,
@@ -91,7 +95,7 @@ const call: ToolCall = {
 };
 
 describe('R4.2 tool runtime handler ownership', () => {
-  it('creates exactly the 32 inventory-assigned handlers without duplicate ownership', () => {
+  it('creates exactly the 35 inventory-assigned handlers without duplicate ownership', () => {
     const handlers = createToolRuntimeHandlers({
       mcp: createMcpDependencies(),
       browser: createBrowserDependencies(),
@@ -99,11 +103,11 @@ describe('R4.2 tool runtime handler ownership', () => {
     });
     const types = handlers.map((handler) => handler.type);
     const expected = readInventoryCommands(
-      'R4.2 / #361 — MCP, tool, browser control, and sandbox (32)',
+      'R4.2 / #361 — MCP, tool, browser control, and sandbox (35)',
     );
 
-    expect(types).toHaveLength(32);
-    expect(new Set(types).size).toBe(32);
+    expect(types).toHaveLength(35);
+    expect(new Set(types).size).toBe(35);
     expect([...types].sort()).toEqual([...expected].sort());
     for (const type of types) expect(getRuntimeCommandOwner(type)).toBe('typed-handler');
 
@@ -113,7 +117,7 @@ describe('R4.2 tool runtime handler ownership', () => {
       .filter((type) => expected.includes(type))
       .sort();
     expect(Object.keys(TOOL_RUNTIME_PAYLOAD_DECODERS).sort()).toEqual(decodedTypes);
-    expect(decodedTypes).toHaveLength(22);
+    expect(decodedTypes).toHaveLength(23);
   });
 
   it('rejects malformed nested MCP input before persistence or external I/O', async () => {
@@ -813,9 +817,34 @@ function createBrowserDependencies(): BrowserToolRuntimeHandlerDependencies {
     setBrowserControlTarget: vi.fn(async () => createBrowserTarget()),
     detachBrowserControl: vi.fn(async () => undefined),
     requestHostPermission: vi.fn(async () => true),
+    getLocalWorkspaceSettings: vi.fn(async (): Promise<LocalWorkspaceSettings> => createLocalWorkspaceSettings()),
+    saveLocalWorkspaceSettings: vi.fn(
+      async (patch: Partial<LocalWorkspaceSettings>): Promise<LocalWorkspaceSettings> =>
+        createLocalWorkspaceSettings(patch),
+    ),
+    testLocalWorkspaceConnection: vi.fn(
+      async (): Promise<LocalWorkspaceConnectionTestResult> => ({
+        ok: true,
+        message: 'connected',
+        serverVersion: '1.0.0',
+      }),
+    ),
     fetch: vi.fn(async () => ({ status: 200, text: async () => '' })),
     broadcastToolDescriptorsUpdate: vi.fn(async () => undefined),
     broadcastBrowserControlUpdate: vi.fn(async () => undefined),
+  };
+}
+
+function createLocalWorkspaceSettings(
+  overrides: Partial<LocalWorkspaceSettings> = {},
+): LocalWorkspaceSettings {
+  return {
+    enabled: true,
+    host: '127.0.0.1',
+    port: 8765,
+    workspacePath: '/tmp/workspace-demo',
+    permission: 'workspace_write',
+    ...overrides,
   };
 }
 

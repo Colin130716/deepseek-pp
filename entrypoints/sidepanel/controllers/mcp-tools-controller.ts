@@ -17,6 +17,11 @@ import {
   createShellMcpPresetInput,
 } from '../../../core/shell';
 import { decodeToolCallHistory } from '../../../core/tool/history-codec';
+import {
+  normalizeLocalWorkspaceSettings,
+  type LocalWorkspaceConnectionTestResult,
+  type LocalWorkspaceSettings,
+} from '../../../core/tool/local-workspace';
 import type { WebSearchToolName } from '../../../core/tool/web-search';
 import type { WebToolSettings } from '../../../core/tool/web-settings';
 import type {
@@ -78,6 +83,9 @@ export interface McpToolsController {
     preview?: string;
   }>>;
   requestHostPermission(origins: string[]): Promise<boolean>;
+  getLocalWorkspaceSettings(): Promise<LocalWorkspaceSettings>;
+  saveLocalWorkspaceSettings(patch: Partial<LocalWorkspaceSettings>): Promise<LocalWorkspaceSettings>;
+  testLocalWorkspaceConnection(): Promise<LocalWorkspaceConnectionTestResult>;
 }
 
 export interface SidepanelHostPermissionPort {
@@ -224,6 +232,29 @@ export function createMcpToolsController(
       // sidepanel click handler to preserve Chrome's required user gesture.
       return hostPermissions.request(origins);
     },
+    getLocalWorkspaceSettings: () => runtimeClient.request(
+      { type: 'GET_LOCAL_WORKSPACE_SETTINGS' },
+      { decode: (value) => normalizeLocalWorkspaceSettings(value) },
+    ),
+    saveLocalWorkspaceSettings: (patch) => runtimeClient.request(
+      { type: 'SAVE_LOCAL_WORKSPACE_SETTINGS', payload: patch },
+      { decode: (value) => normalizeLocalWorkspaceSettings(value) },
+    ),
+    testLocalWorkspaceConnection: () => runtimeClient.request(
+      { type: 'TEST_LOCAL_WORKSPACE_CONNECTION' },
+      {
+        decode: (value) => {
+          const record = value && typeof value === 'object' && !Array.isArray(value)
+            ? value as Record<string, unknown>
+            : {};
+          return {
+            ok: record.ok === true,
+            message: typeof record.message === 'string' ? record.message : '',
+            serverVersion: typeof record.serverVersion === 'string' ? record.serverVersion : undefined,
+          };
+        },
+      },
+    ),
   };
   return Object.freeze(controller);
 }

@@ -69,6 +69,7 @@ DeepSeek++ 是面向 [DeepSeek](https://chat.deepseek.com) 网页版的开源浏
 | DeepSeek prompt controls / 提示词控制 | 控制记忆、系统提示词、预设注入频率和回复语言，适合在不同任务之间快速切换。 |
 | DeepSeek automation / 自动化任务 | 把固定任务放入独立 DeepSeek 会话，支持立即运行、定时触发、状态追踪和手动停止。 |
 | DeepSeek web search / 网页获取 | 在需要实时信息或指定网页内容时搜索互联网、读取网页文本，并继续生成最终回答。 |
+| Local workspace agent / 本地工作区 | 选定本机工作区目录后，模型可在工作区内读写、编辑文件并执行命令，由本地 Python 服务安全执行（三级权限可选）。 |
 
 ## 适合场景
 
@@ -80,6 +81,7 @@ DeepSeek++ 是面向 [DeepSeek](https://chat.deepseek.com) 网页版的开源浏
 - 希望把项目背景、个人偏好、常用工作流和文档处理能力沉淀为长期记忆与可复用 Skill。
 - 希望把自己的 DeepSeek 对话记录本地备份为可读文件，便于归档、迁移或后续检索。
 - 希望让 DeepSeek 处理需要多步工具执行、联网搜索、网页读取或定时跟踪的任务。
+- 希望让模型在选定的本机工作区内读写文件、修改代码或执行命令，并按「仅可查看 / 工作区内修改 / 完全权限」三级授权控制风险。
 
 ## 核心功能
 
@@ -212,6 +214,35 @@ DeepSeek++ 是面向 [DeepSeek](https://chat.deepseek.com) 网页版的开源浏
 - **输入框媒体附件** — 安装并启用多模态预设后，可在 DeepSeek 输入框添加图片或视频，分析结果会并入本次消息继续生成
 - **用户可控边界** — OpenAI / Gemini Key、模型和请求地址由用户在设置页配置；媒体文件只在用户主动附加并发送时进入多模态分析流程
 - **本地安全** — MCP 配置和密钥保存在浏览器本地，同步功能不会同步敏感信息
+
+### 本地工作区（Local Workspace）
+
+选定一个本机工作区目录后，DeepSeek++ 可以把 `read / list / write / edit / bash` 这类常用 Agent 工具交给模型调用，真实执行由仓库内置的 Python FastAPI 本地服务（`local-server/`）完成，扩展只负责把工具描述注入会话并转发调用。
+
+- **三级权限选择** — 在聊天框 / 侧边栏「工具」页可选择授权级别：仅可查看（Read only，只能 read/list）、工作区内修改（Workspace write，可 read/list/write/edit）、完全权限（Full access，额外开放 bash）。扩展按权限裁剪暴露给模型的工具，本地服务端同时独立强制同一权限矩阵，双重校验。
+- **路径沙箱** — 所有文件操作以所选工作区根目录为界，realpath 解析后必须仍在根内；绝对路径、`..` 逃逸与符号链接逃逸会被服务端直接拒绝。未知权限值一律降级为仅可查看（fail-closed）。
+- **执行限额** — 读取 ≤512KB、写入 ≤1MB、列目录 ≤500 项、bash 默认 30 秒超时（上限 120 秒）、输出截断 256KB，避免大结果撑爆会话。
+- **本地回环** — 服务仅监听 `127.0.0.1`（默认端口 8765），不暴露到局域网；CORS 只允许扩展来源。首次启用时扩展会请求该地址的主机权限。
+
+使用步骤：
+
+```bash
+# 1. 启动本地服务（需要 Python 3.10+）
+cd local-server
+pip install -r requirements.txt
+python run.py                 # 默认 http://127.0.0.1:8765
+python run.py --port 9000     # 自定义端口（需与扩展设置一致）
+```
+
+```text
+# 2. 在扩展中配置
+侧边栏「工具」页 → 本地工作区卡片：
+  填入工作区绝对路径（如 /home/user/projects/demo 或 C:\Users\you\project）
+  选择权限级别（仅可查看 / 工作区内修改 / 完全权限）
+  点击「测试连接」确认服务在线，然后打开启用开关
+```
+
+之后在 DeepSeek 聊天中让模型「列出工作区文件」「读取 src/index.ts」「把 A 替换为 B」等，工具调用会自动路由到本地服务执行，结果回传同一会话继续生成。更多服务端细节与安全模型见 [local-server/README.md](local-server/README.md)。
 
 <p align="center">
   <img src="assets/screenshot-sidepanel-mcp.png" width="300" alt="MCP 管理侧边栏">
@@ -1094,6 +1125,8 @@ npm run shell:install -- --browser chrome --extension-id <扩展ID>
 Chrome 用户可以直接从 [Chrome Web Store](https://chromewebstore.google.com/detail/deepseek++/kdmpkkahkhdmdhfkdihkopikgcocbpbf?hl=zh-CN) 安装 DeepSeek++。安装后打开 [DeepSeek 网页版](https://chat.deepseek.com)，即可在侧边栏中按需启用记忆、Skill、MCP、联网工具、对话导出和自动化能力。
 
 如果需要 Shell MCP 或本机文件工具，再按侧边栏 `MCP` 页提示安装 Shell Native Host。
+
+如果需要使用本地工作区 Agent 工具（read / write / edit / bash），请在终端启动仓库自带的本地服务：`cd local-server && pip install -r requirements.txt && python run.py`，然后在侧边栏「工具」页的「本地工作区」卡片中填入工作区路径、选择权限级别并测试连接；详细用法见 [核心功能 · 本地工作区](#本地工作区local-workspace) 与 [local-server/README.md](local-server/README.md)。
 
 ### 从源码构建
 

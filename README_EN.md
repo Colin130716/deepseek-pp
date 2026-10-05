@@ -69,6 +69,7 @@ Language can follow the browser or be set to English or Simplified Chinese. Deep
 | DeepSeek prompt controls | Controls memory, system prompt, preset cadence, and response language for different tasks. |
 | DeepSeek automation | Runs fixed tasks in dedicated DeepSeek conversations with manual start, scheduled triggers, status tracking, and manual stop. |
 | DeepSeek web search / web fetch | Searches the web or reads specified pages when current information or source material is needed, then continues to the final answer. |
+| Local workspace agent | After selecting a local workspace directory, the model can read/write/edit files and run commands inside it, executed safely by a bundled local Python server with three selectable permission levels. |
 
 ## Use Cases
 
@@ -80,6 +81,7 @@ Language can follow the browser or be set to English or Simplified Chinese. Deep
 - Save project context, personal preferences, common workflows, and document-processing routines as long-term memory and reusable Skills.
 - Back up your own DeepSeek conversation history locally as readable files for archive, migration, or later search.
 - Let DeepSeek handle tasks that require multi-step tool execution, web search, page reading, or scheduled follow-up.
+- Let the model read, write, and edit files or run commands inside a selected local workspace, with risk controlled by three permission levels (Read only / Workspace write / Full access).
 
 ## Core Features
 
@@ -212,6 +214,35 @@ Language can follow the browser or be set to English or Simplified Chinese. Deep
 - **Input-box media attachments** - After the Multimodal preset is installed and enabled, add images or videos from the DeepSeek input box and continue the message with the analysis results.
 - **User-controlled boundary** - OpenAI / Gemini keys, models, and request URLs are configured by the user in Settings. Media files enter multimodal analysis only when the user attaches and sends them.
 - **Local security** - MCP configuration and secrets stay in browser-local storage. Sync does not include sensitive MCP data.
+
+### Local Workspace
+
+After selecting a local workspace directory, DeepSeek++ can expose common agent tools (`read / list / write / edit / bash`) to the model. Real execution happens in the bundled Python FastAPI local server (`local-server/`); the extension only injects tool descriptions into the conversation and forwards calls.
+
+- **Three permission levels** - Choose an authorization level in the side-panel Tools page: Read only (read/list), Workspace write (read/list/write/edit), or Full access (adds bash). The extension trims exposed tools by level, and the local server independently enforces the same matrix — double validation.
+- **Path sandbox** - All file operations are confined to the selected workspace root; after realpath resolution the target must remain inside it. Absolute paths, `..` escapes, and symlink escapes are rejected by the server. Unknown permission values fail closed to Read only.
+- **Execution limits** - Read ≤512KB, write ≤1MB, directory listing ≤500 entries, bash default 30s timeout (max 120s), output truncated at 256KB.
+- **Loopback only** - The server binds to `127.0.0.1` (default port 8765) and is never exposed to the LAN; CORS allows extension origins only. The extension requests host permission for that address on first enable.
+
+Steps:
+
+```bash
+# 1. Start the local server (Python 3.10+)
+cd local-server
+pip install -r requirements.txt
+python run.py                 # http://127.0.0.1:8765 by default
+python run.py --port 9000     # custom port (must match extension settings)
+```
+
+```text
+# 2. Configure the extension
+Side panel > Tools > Local Workspace card:
+  Enter an absolute workspace path (e.g. /home/user/projects/demo or C:\Users\you\project)
+  Pick a permission level (Read only / Workspace write / Full access)
+  Click "Test connection", then toggle the feature on
+```
+
+Then ask the model in DeepSeek chat to "list workspace files", "read src/index.ts", or "replace A with B" — tool calls are routed to the local server and results return to the same conversation. See [local-server/README.md](local-server/README.md) for the full security model.
 
 <p align="center">
   <img src="assets/screenshot-sidepanel-mcp.png" width="300" alt="MCP management side panel">
@@ -1094,6 +1125,8 @@ Thanks to this release's contributors: [@todayzhou](https://github.com/todayzhou
 Chrome users can install DeepSeek++ directly from the [Chrome Web Store](https://chromewebstore.google.com/detail/deepseek++/kdmpkkahkhdmdhfkdihkopikgcocbpbf?hl=zh-CN). After installation, open [DeepSeek Web](https://chat.deepseek.com) and enable memory, Skills, MCP tools, web tools, conversation export, and automation from the side panel as needed.
 
 If you need Shell MCP or local file tools, follow the Shell Native Host instructions shown on the side-panel `MCP` page.
+
+To use the Local Workspace agent tools (read / write / edit / bash), start the bundled local server first: `cd local-server && pip install -r requirements.txt && python run.py`, then set a workspace path, pick a permission level, and test the connection in the side-panel `Tools` page under the Local Workspace card. See [Core Features > Local Workspace](#local-workspace) and [local-server/README.md](local-server/README.md) for details.
 
 ### Build from Source
 

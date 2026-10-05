@@ -13,6 +13,10 @@ import type {
 } from '../../core/browser-control/types';
 import type { WebSearchToolName } from '../../core/tool/web-search';
 import type { WebToolSettings } from '../../core/tool/web-settings';
+import type {
+  LocalWorkspaceConnectionTestResult,
+  LocalWorkspaceSettings,
+} from '../../core/tool/local-workspace/types';
 import { defineToolPayloadRuntimeCommandHandler } from './runtime-handler';
 
 const WEB_SEARCH_DIAGNOSTIC_DOMAINS = ['cn.bing.com', 'www.bing.com'] as const;
@@ -32,6 +36,11 @@ export interface BrowserToolRuntimeHandlerDependencies {
   setBrowserControlTarget(tabId: number): Promise<BrowserControlTarget>;
   detachBrowserControl(): Promise<void>;
   requestHostPermission(origins: string[]): Promise<boolean>;
+  getLocalWorkspaceSettings(): Promise<LocalWorkspaceSettings>;
+  saveLocalWorkspaceSettings(
+    patch: Partial<LocalWorkspaceSettings>,
+  ): Promise<LocalWorkspaceSettings>;
+  testLocalWorkspaceConnection(): Promise<LocalWorkspaceConnectionTestResult>;
   fetch(input: string, init: RequestInit): Promise<Pick<Response, 'status' | 'text'>>;
   broadcastToolDescriptorsUpdate(excludeTabId?: number): Promise<void>;
   broadcastBrowserControlUpdate(excludeTabId?: number): Promise<void>;
@@ -78,6 +87,17 @@ export function createBrowserToolRuntimeHandlers(
       await dependencies.broadcastBrowserControlUpdate(context.tabId);
       return { ok: true as const };
     }),
+    definePayloadlessRuntimeCommandHandler('GET_LOCAL_WORKSPACE_SETTINGS', () => (
+      dependencies.getLocalWorkspaceSettings()
+    )),
+    defineToolPayloadRuntimeCommandHandler('SAVE_LOCAL_WORKSPACE_SETTINGS', async (payload, context) => {
+      const settings = await dependencies.saveLocalWorkspaceSettings(payload ?? {});
+      await dependencies.broadcastToolDescriptorsUpdate(context.tabId);
+      return settings;
+    }),
+    definePayloadlessRuntimeCommandHandler('TEST_LOCAL_WORKSPACE_CONNECTION', () => (
+      dependencies.testLocalWorkspaceConnection()
+    )),
     defineToolPayloadRuntimeCommandHandler('DIAGNOSE_WEB_SEARCH', (payload) => (
       diagnoseWebSearch(payload?.query ?? 'test', dependencies.fetch)
     )),
