@@ -53,7 +53,9 @@ export const LOCAL_WORKSPACE_PROVIDER: ToolProviderIdentity = {
   kind: 'local',
   id: LOCAL_WORKSPACE_PROVIDER_ID,
   displayName: 'Local Workspace',
-  transport: 'http',
+  // The registry requires local providers to use the in_process transport; the
+  // HTTP hop to the local server is an implementation detail of the tool itself.
+  transport: 'in_process',
 };
 
 export interface LocalWorkspaceSettings {
